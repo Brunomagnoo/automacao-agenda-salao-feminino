@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id           String        @id @default(cuid())
+  uniqueCode   String        @unique
+  name         String
+  phone        String        @unique
+  passwordHash String
+  role         Role          @default(CLIENT)
+  createdAt    DateTime      @default(now())
+  deletedAt    DateTime?
+  appointments Appointment[]
+}
+
+enum Role {
+  CLIENT
+  ADMIN
+}
+
+model Service {
+  id                  String               @id @default(cuid())
+  name                String
+  category            Category
+  durationMin         Int
+  basePrice           Float
+  isActive            Boolean              @default(true)
+  displayOrder        Int                  @default(0)
+  appointmentServices AppointmentService[]
+}
+
+enum Category {
+  CABELO
+  MANICURE
+}
+
+model TimeSlot {
+  id           String        @id @default(cuid())
+  date         DateTime      @db.Date
+  startTime    String
+  endTime      String
+  isAvailable  Boolean       @default(true)
+  appointments Appointment[]
+
+  @@index([date])
+}
+
+model Appointment {
+  id               String              @id @default(cuid())
+  userId           String
+  user             User                @relation(fields: [userId], references: [id])
+  timeSlotId       String
+  timeSlot         TimeSlot            @relation(fields: [timeSlotId], references: [id])
+  totalEstimated   Float
+  totalFinal       Float?
+  expenses         Float?
+  totalDurationMin Int
+  status           AppointmentStatus   @default(PENDING)
+  createdAt        DateTime            @default(now())
+  services         AppointmentService[]
+
+  @@index([userId])
+  @@index([timeSlotId])
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+model AppointmentService {
+  id            String      @id @default(cuid())
+  appointmentId String
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  serviceId     String
+  service       Service     @relation(fields: [serviceId], references: [id])
+
+  @@unique([appointmentId, serviceId])
+}
