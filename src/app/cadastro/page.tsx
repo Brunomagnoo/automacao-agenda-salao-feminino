@@ -66,7 +66,7 @@ export default function CadastroPage() {
 
       <div className="auth-card-new fade-in">
         <div className="auth-logo-wrap">
-          <img src="/LOGO2s.PNG.png" alt="Beauty Salon" />
+          <img src="/icon-150x150.png.png" alt="Beauty Salon" />
         </div>
 
         <h1 className="auth-title">Criar conta</h1>

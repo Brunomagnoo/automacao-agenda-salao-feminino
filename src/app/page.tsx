@@ -10,7 +10,7 @@ export default function HomePage() {
       <div className="landing-content fade-in">
         {/* Logo */}
         <div className="landing-logo">
-          <img src="/LOGO2s.PNG.png" alt="Beauty Salon" />
+          <img src="/icon-150x150.png.png" alt="Beauty Salon" />
         </div>
 
         {/* Tagline */}
