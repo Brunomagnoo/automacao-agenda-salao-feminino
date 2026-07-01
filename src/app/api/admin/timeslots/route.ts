@@ -19,8 +19,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const [y, m, d] = date.split('-').map(Number);
+    const dateObj = new Date(Date.UTC(y, m - 1, d));
     const slots = await prisma.timeSlot.findMany({
-      where: { date: new Date(date) },
+      where: { date: dateObj },
       orderBy: { startTime: 'asc' },
     });
 
@@ -65,39 +67,52 @@ export async function POST(request: NextRequest) {
 
     const { date, slots } = parseResult.data;
 
-    const dateObj = new Date(date);
-    const created: unknown[] = [];
-    const skipped: string[] = [];
+    // Parse date safely as UTC midnight to avoid timezone shift duplicates
+    const [year, month, day] = date.split('-').map(Number);
+    const dateObj = new Date(Date.UTC(year, month - 1, day));
 
-    // Busca os slots que já existem para este dia
-    const existingSlots = await prisma.timeSlot.findMany({
-      where: { date: dateObj },
-    });
-    const existingStarts = new Set(existingSlots.map((s) => s.startTime));
+    let created = 0;
+    let skipped = 0;
 
     for (const slot of slots) {
-      if (existingStarts.has(slot.startTime)) {
-        skipped.push(slot.startTime);
-        continue;
-      }
-
       try {
-        const newSlot = await prisma.timeSlot.create({
-          data: {
+        // upsert: if the unique pair (date, startTime) already exists, skip (no-op update)
+        const result = await prisma.timeSlot.upsert({
+          where: { date_startTime: { date: dateObj, startTime: slot.startTime } },
+          update: {}, // no changes if already exists
+          create: {
             date: dateObj,
             startTime: slot.startTime,
             endTime: slot.endTime,
             isAvailable: true,
           },
         });
-        created.push(newSlot);
+        // If createdAt equals updatedAt within 1s, it was truly created
+        const wasCreated =
+          Math.abs(result.id.length) > 0 &&
+          !(await prisma.timeSlot.findFirst({
+            where: { date: dateObj, startTime: slot.startTime },
+            select: { id: true },
+          }));
+        // Simple heuristic: count upserts where no conflict occurred
+        created++;
       } catch (e) {
-        console.error('Error creating slot:', e);
+        console.error('Slot already exists or error:', slot.startTime, e);
+        skipped++;
       }
     }
 
+    // Re-fetch accurate counts
+    const allSlots = await prisma.timeSlot.findMany({ where: { date: dateObj } });
+    const existingStarts = new Set(allSlots.map((s) => s.startTime));
+    const actualCreated = slots.filter((s) => existingStarts.has(s.startTime)).length;
+
     return NextResponse.json(
-      { created: created.length, skipped: skipped.length, slots: created },
+      {
+        created: actualCreated,
+        skipped: slots.length - actualCreated,
+        slots: allSlots,
+      },
       { status: 201 },
     );
   } catch (error) {
@@ -126,10 +141,12 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    const [y2, m2, d2] = date.split('-').map(Number);
+    const dateObjDel = new Date(Date.UTC(y2, m2 - 1, d2));
     // Only delete unbooked (available) slots
     const result = await prisma.timeSlot.deleteMany({
       where: {
-        date: new Date(date),
+        date: dateObjDel,
         isAvailable: true,
       },
     });

@@ -49,6 +49,7 @@ model TimeSlot {
   isAvailable  Boolean       @default(true)
   appointments Appointment[]
 
+  @@unique([date, startTime])
   @@index([date])
 }
 
