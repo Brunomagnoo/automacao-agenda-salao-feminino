@@ -51,4 +51,3 @@ A stack foi cuidadosamente selecionada para garantir escalabilidade global com c
 *   [ ] Testes E2E Automatizados com Playwright.
 *   [ ] Integração Oficial via WhatsApp API.
 
-> "A beleza de um software não está apenas na sua interface, mas na resiliência invisível que o sustenta quando ninguém está olhando."
