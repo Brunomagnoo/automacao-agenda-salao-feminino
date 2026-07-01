@@ -2,13 +2,17 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Beauty Salon - Agendamento Online',
-  description:
-    'Agende seus serviços de beleza online de forma rápida e prática. Cabelo, manicure e pedicure com horários disponíveis em tempo real.',
-  keywords: 'salão de beleza, agendamento, cabelo, manicure, pedicure, beauty salon',
+  title: 'Beauty Salon App',
+  description: 'Agende seu horário com praticidade.',
+  appleWebApp: {
+    capable: true,
+    title: 'Beauty Salon App',
+    statusBarStyle: 'black-translucent',
+  },
 };
 
 export const viewport: Viewport = {
+  themeColor: '#0f172a',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
