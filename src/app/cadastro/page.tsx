@@ -8,12 +8,50 @@ export default function CadastroPage() {
   const router = useRouter();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [phoneValid, setPhoneValid] = useState<boolean | null>(null);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Format phone as (XX) XXXXX-XXXX or (XX) XXXX-XXXX
+  function formatPhone(value: string): string {
+    const digits = value.replace(/\D/g, '').slice(0, 11);
+    if (digits.length <= 10) {
+      return digits
+        .replace(/(\d{2})(\d)/, '($1) $2')
+        .replace(/(\d{4})(\d)/, '$1-$2');
+    }
+    return digits
+      .replace(/(\d{2})(\d)/, '($1) $2')
+      .replace(/(\d{5})(\d)/, '$1-$2');
+  }
+
+  // Brazilian mobile: DDD 11–99, mobile starts with 9 (11 digits) or landline (10 digits)
+  function isValidBrazilianPhone(digits: string): boolean {
+    if (digits.length === 11) {
+      // Mobile: DDD (11–99) + 9 + 8 digits
+      return /^([1-9]{1}[1-9]{1})(9\d{8})$/.test(digits);
+    }
+    if (digits.length === 10) {
+      // Landline: DDD (11–99) + 2–5 + 7 digits
+      return /^([1-9]{1}[1-9]{1})([2-5]\d{7})$/.test(digits);
+    }
+    return false;
+  }
+
+  function handlePhoneChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const formatted = formatPhone(e.target.value);
+    setPhone(formatted);
+    const digits = formatted.replace(/\D/g, '');
+    if (digits.length >= 10) {
+      setPhoneValid(isValidBrazilianPhone(digits));
+    } else {
+      setPhoneValid(null);
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -25,8 +63,9 @@ export default function CadastroPage() {
       return;
     }
     const cleanPhone = phone.replace(/\D/g, '');
-    if (cleanPhone.length < 10 || cleanPhone.length > 11) {
-      setError('Telefone deve ter 10 ou 11 dígitos');
+    if (!isValidBrazilianPhone(cleanPhone)) {
+      setError('Número de celular inválido. Use o formato (XX) XXXXX-XXXX com DDD.');
+      setPhoneValid(false);
       return;
     }
     if (password.length < 6) {
@@ -105,15 +144,32 @@ export default function CadastroPage() {
           </div>
 
           <div className="auth-field">
-            <label htmlFor="phone">📱 Telefone</label>
+            <label htmlFor="phone">📱 Celular</label>
             <input
               id="phone"
               type="tel"
-              placeholder="(00) 00000-0000"
+              placeholder="(11) 99999-0000"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={handlePhoneChange}
+              inputMode="numeric"
+              maxLength={15}
+              style={{
+                borderColor:
+                  phoneValid === null ? undefined : phoneValid ? '#22c55e' : '#ef4444',
+                outline: 'none',
+              }}
               required
             />
+            {phoneValid === false && (
+              <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>
+                Número inválido. Ex: (11) 99999-0000
+              </span>
+            )}
+            {phoneValid === true && (
+              <span style={{ color: '#22c55e', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>
+                ✓ Número válido
+              </span>
+            )}
           </div>
 
           <div className="auth-field">

@@ -4,9 +4,16 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { z } from 'zod';
 
+const BRAZIL_PHONE_REGEX = /^([1-9]{1}[1-9]{1})(9\d{8}|\d{8})$/;
+
 const RegisterSchema = z.object({
-  name: z.string().min(2, 'Nome deve ter no mínimo 2 caracteres'),
-  phone: z.string().min(1, 'Telefone é obrigatório'),
+  name: z.string().min(2, 'Nome deve ter no mínimo 2 caracteres').max(100),
+  phone: z
+    .string()
+    .transform((val) => val.replace(/\D/g, '').replace(/^55/, ''))
+    .refine((digits) => BRAZIL_PHONE_REGEX.test(digits), {
+      message: 'Número de celular inválido. Informe DDD + número (ex: 11987654321)',
+    }),
   password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
 });
 
@@ -23,17 +30,11 @@ export async function POST(request: NextRequest) {
     }
 
     const { name, phone, password } = parseResult.data;
-
-    // Clean phone: remove non-digits and leading country code 55
-    const cleanPhone = phone.replace(/\D/g, '').replace(/^55/, '');
-
-    if (!cleanPhone) {
-      return NextResponse.json({ error: 'Telefone inválido' }, { status: 400 });
-    }
+    // `phone` is already cleaned and validated by the Zod schema transform
 
     // Check if phone already exists
     const existingUser = await prisma.user.findUnique({
-      where: { phone: cleanPhone },
+      where: { phone },
     });
 
     if (existingUser) {
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
     const user = await prisma.user.create({
       data: {
         name,
-        phone: cleanPhone,
+        phone,
         passwordHash,
         uniqueCode,
         role: 'CLIENT',
