@@ -117,7 +117,6 @@ export default function AgendarPage() {
       <header className="svc-header">
         <div className="svc-header__inner">
           <div className="svc-header__logo">
-            <img src="/icon-40x40.png.png" alt="Beauty Salon" />
             <span>Beauty Salon</span>
           </div>
           <div className="svc-header__right">
