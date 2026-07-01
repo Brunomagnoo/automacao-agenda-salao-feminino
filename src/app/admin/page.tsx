@@ -114,7 +114,6 @@ export default function AdminPage() {
       <header className="adm-header">
         <div className="adm-header__inner">
           <div className="adm-header__left">
-            <img src="/icon-40x40.png.png" alt="Logo" className="adm-header__logo" />
             <span className="adm-header__title">Painel Administrativo</span>
           </div>
           <button className="adm-header__logout" onClick={handleLogout}>
