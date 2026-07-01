@@ -141,7 +141,7 @@ export default function HorarioPage() {
       <div className="header">
         <div className="header__inner">
           <div className="header__logo">
-            <img src="/logo.png" alt="Beauty Salon" style={{ height: 40 }} />
+            <img src="/LOGO2s.PNG.png" alt="Beauty Salon" style={{ height: 40 }} />
             <span className="header__logo-text">Beauty Salon</span>
           </div>
           <div className="header__actions">

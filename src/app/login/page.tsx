@@ -50,7 +50,7 @@ export default function LoginPage() {
       <div className="auth-card-new fade-in">
         {/* Logo */}
         <div className="auth-logo-wrap">
-          <img src="/logo.png" alt="Beauty Salon" />
+          <img src="/LOGO2s.PNG.png" alt="Beauty Salon" />
         </div>
 
         <h1 className="auth-title">Bem-vinda de volta!</h1>
