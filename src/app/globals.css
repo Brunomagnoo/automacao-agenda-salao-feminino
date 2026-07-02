@@ -1004,10 +1004,19 @@ img {
   overflow-x: auto;
   padding-bottom: var(--space-sm);
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
+  /* Visual cue that it scrolls on desktop */
+  padding-bottom: 8px;
 }
+/* Use a styled thin scrollbar instead of completely hiding it */
 .date-picker::-webkit-scrollbar {
-  display: none;
+  height: 6px;
+}
+.date-picker::-webkit-scrollbar-track {
+  background: transparent;
+}
+.date-picker::-webkit-scrollbar-thumb {
+  background-color: var(--color-border);
+  border-radius: 4px;
 }
 
 .date-card {

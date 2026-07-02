@@ -11,7 +11,7 @@ export default function HorarioPage() {
   const [user, setUser] = useState<User | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [totalDurationMin, setTotalDurationMin] = useState(0);
-  const [dates] = useState<string[]>(() => getNextWorkingDays(14));
+  const [dates] = useState<string[]>(() => getNextWorkingDays(15));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
