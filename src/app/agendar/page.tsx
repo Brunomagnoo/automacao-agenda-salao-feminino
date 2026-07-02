@@ -73,6 +73,15 @@ export default function AgendarPage() {
           // Selected combo: remove individual selections
           next = next.filter((sid) => sid !== 'manicure-10' && sid !== 'manicure-11');
         }
+
+        // Limit maximum duration to 8 hours (480 minutes)
+        const nextServices = services.filter((s) => next.includes(s.id));
+        const nextDuration = nextServices.reduce((sum, s) => sum + s.durationMin, 0);
+        
+        if (nextDuration > 480) {
+          alert('A duração total dos serviços não pode ultrapassar 8 horas. Por favor, divida em mais de um agendamento.');
+          return prev;
+        }
       }
 
       return next;
