@@ -70,6 +70,7 @@ export async function GET() {
     let dayProfit = 0;
     let weekProfit = 0;
     let monthProfit = 0;
+    let monthExpenses = 0;
 
     // Chart: last 7 BRT days including today
     const chartDataMap: Record<string, number> = {};
@@ -91,6 +92,7 @@ export async function GET() {
 
       // Month profit: all fetched appointments are already within month range
       monthProfit += profit;
+      monthExpenses += expenses;
 
       // Day: compare date strings (both in same reference: UTC midnight of BRT day)
       if (apptDateStr === todayStr) {
@@ -128,6 +130,7 @@ export async function GET() {
       dayProfit: Math.round(dayProfit * 100) / 100,
       weekProfit: Math.round(weekProfit * 100) / 100,
       monthProfit: Math.round(monthProfit * 100) / 100,
+      monthExpenses: Math.round(monthExpenses * 100) / 100,
       chartData,
       topServices,
     });

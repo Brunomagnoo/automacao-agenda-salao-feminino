@@ -24,6 +24,7 @@ export default function DashboardTab({ isAuthed }: { isAuthed: boolean }) {
     dayProfit: 0,
     weekProfit: 0,
     monthProfit: 0,
+    monthExpenses: 0,
     chartData: [] as ChartData[],
     topServices: [] as TopService[],
   });
@@ -72,6 +73,10 @@ export default function DashboardTab({ isAuthed }: { isAuthed: boolean }) {
             <div className="adm-caixa-card">
               <span className="adm-caixa-card__label">Faturamento do Mês</span>
               <span className="adm-caixa-card__value">{fmtCurrency(dashMetrics.monthProfit)}</span>
+            </div>
+            <div className="adm-caixa-card">
+              <span className="adm-caixa-card__label">Despesas Totais (Mês)</span>
+              <span className="adm-caixa-card__value">{fmtCurrency(dashMetrics.monthExpenses)}</span>
             </div>
           </div>
 
