@@ -14,7 +14,7 @@ import {
   Legend,
 } from 'recharts';
 
-type ChartData = { date: string; valor: number };
+type ChartData = { date: string; valor: number; despesas: number };
 type TopService = { name: string; value: number };
 
 const PIE_COLORS = ['#C88A83', '#E6B8B3', '#9D5C55', '#4A3B39', '#F2D5D2'];
@@ -108,7 +108,7 @@ export default function DashboardTab({ isAuthed }: { isAuthed: boolean }) {
                   alignItems: 'center'
                 }}
               >
-                <span>Faturamento (Últimos 7 dias)</span>
+                <span>Faturamento e Despesas (Últimos 7 dias)</span>
                 {selectedDay && (
                   <button 
                     onClick={() => setSelectedDay(null)}
@@ -146,17 +146,32 @@ export default function DashboardTab({ isAuthed }: { isAuthed: boolean }) {
                     <Tooltip
                       cursor={{ fill: 'rgba(200, 138, 131, 0.1)' }}
                       contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}
-                      formatter={(value: any) => [fmtCurrency(Number(value) || 0), 'Faturamento']}
+                      formatter={(value: any, name: any) => [fmtCurrency(Number(value) || 0), name]}
                     />
+                    <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: '12px', color: '#4A3B39' }} />
                     <Bar 
                       dataKey="valor" 
+                      name="Faturamento"
                       fill="#C88A83" 
                       radius={[6, 6, 0, 0]} 
-                      barSize={30}
+                      barSize={15}
                       style={{ cursor: 'pointer' }}
                       onClick={(data: any) => {
                         if (data && data.date !== undefined) {
-                          setSelectedDay(prev => prev?.date === data.date ? null : { date: data.date, valor: data.valor });
+                          setSelectedDay(prev => prev?.date === data.date ? null : { date: data.date, valor: data.valor, despesas: data.despesas });
+                        }
+                      }}
+                    />
+                    <Bar 
+                      dataKey="despesas" 
+                      name="Despesas"
+                      fill="#9D5C55" 
+                      radius={[6, 6, 0, 0]} 
+                      barSize={15}
+                      style={{ cursor: 'pointer' }}
+                      onClick={(data: any) => {
+                        if (data && data.date !== undefined) {
+                          setSelectedDay(prev => prev?.date === data.date ? null : { date: data.date, valor: data.valor, despesas: data.despesas });
                         }
                       }}
                     />

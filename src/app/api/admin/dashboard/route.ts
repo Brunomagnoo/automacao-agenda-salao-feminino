@@ -73,10 +73,10 @@ export async function GET() {
     let monthExpenses = 0;
 
     // Chart: last 7 BRT days including today
-    const chartDataMap: Record<string, number> = {};
+    const chartDataMap: Record<string, { profit: number; expenses: number }> = {};
     for (let i = 6; i >= 0; i--) {
       const d = new Date(utcMidnight(todayStr).getTime() - i * 24 * 60 * 60 * 1000);
-      chartDataMap[toUTCDateStr(d)] = 0;
+      chartDataMap[toUTCDateStr(d)] = { profit: 0, expenses: 0 };
     }
 
     const serviceCountMap: Record<string, number> = {};
@@ -105,8 +105,9 @@ export async function GET() {
       }
 
       // Chart: match against the 7-day window
-      if (chartDataMap[apptDateStr] !== undefined) {
-        chartDataMap[apptDateStr] += profit;
+      if (chartDataMap[apptDateStr]) {
+        chartDataMap[apptDateStr].profit += profit;
+        chartDataMap[apptDateStr].expenses += expenses;
       }
 
       // Top services count
@@ -116,9 +117,10 @@ export async function GET() {
       }
     }
 
-    const chartData = Object.entries(chartDataMap).map(([date, value]) => ({
+    const chartData = Object.entries(chartDataMap).map(([date, data]) => ({
       date: date.substring(8, 10) + '/' + date.substring(5, 7), // DD/MM
-      valor: Math.round(value * 100) / 100, // avoid floating point noise
+      valor: Math.round(data.profit * 100) / 100, // avoid floating point noise
+      despesas: Math.round(data.expenses * 100) / 100,
     }));
 
     const topServices = Object.entries(serviceCountMap)
