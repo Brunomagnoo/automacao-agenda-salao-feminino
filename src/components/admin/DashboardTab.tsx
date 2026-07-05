@@ -28,6 +28,7 @@ export default function DashboardTab({ isAuthed }: { isAuthed: boolean }) {
     topServices: [] as TopService[],
   });
   const [loadingDash, setLoadingDash] = useState(false);
+  const [selectedDay, setSelectedDay] = useState<ChartData | null>(null);
 
   const fetchDashboard = useCallback(async () => {
     setLoadingDash(true);
@@ -57,8 +58,12 @@ export default function DashboardTab({ isAuthed }: { isAuthed: boolean }) {
         <>
           <div className="adm-caixa-summary" style={{ marginTop: '20px' }}>
             <div className="adm-caixa-card adm-caixa-card--highlight">
-              <span className="adm-caixa-card__label">Faturamento do Dia</span>
-              <span className="adm-caixa-card__value">{fmtCurrency(dashMetrics.dayProfit)}</span>
+              <span className="adm-caixa-card__label">
+                {selectedDay ? `Faturamento (${selectedDay.date})` : 'Faturamento do Dia'}
+              </span>
+              <span className="adm-caixa-card__value">
+                {fmtCurrency(selectedDay ? selectedDay.valor : dashMetrics.dayProfit)}
+              </span>
             </div>
             <div className="adm-caixa-card">
               <span className="adm-caixa-card__label">Faturamento da Semana</span>
@@ -93,9 +98,27 @@ export default function DashboardTab({ isAuthed }: { isAuthed: boolean }) {
                   color: '#4A3B39',
                   marginBottom: '20px',
                   fontWeight: 600,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
                 }}
               >
-                Faturamento (Últimos 7 dias)
+                <span>Faturamento (Últimos 7 dias)</span>
+                {selectedDay && (
+                  <button 
+                    onClick={() => setSelectedDay(null)}
+                    style={{
+                      fontSize: '0.8rem',
+                      background: 'none',
+                      border: 'none',
+                      color: '#9D5C55',
+                      cursor: 'pointer',
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    Ver hoje
+                  </button>
+                )}
               </h3>
               <div style={{ width: '100%', height: 300 }}>
                 <ResponsiveContainer>
@@ -120,7 +143,18 @@ export default function DashboardTab({ isAuthed }: { isAuthed: boolean }) {
                       contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}
                       formatter={(value: any) => [fmtCurrency(Number(value) || 0), 'Faturamento']}
                     />
-                    <Bar dataKey="valor" fill="#C88A83" radius={[6, 6, 0, 0]} barSize={30} />
+                    <Bar 
+                      dataKey="valor" 
+                      fill="#C88A83" 
+                      radius={[6, 6, 0, 0]} 
+                      barSize={30}
+                      style={{ cursor: 'pointer' }}
+                      onClick={(data: any) => {
+                        if (data && data.date !== undefined) {
+                          setSelectedDay(prev => prev?.date === data.date ? null : { date: data.date, valor: data.valor });
+                        }
+                      }}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
