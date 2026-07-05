@@ -165,7 +165,7 @@ export default function DashboardTab({ isAuthed }: { isAuthed: boolean }) {
                       </Pie>
                       <Tooltip
                         contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}
-                        formatter={(value: any) => [`${value} agendamentos`, '']}
+                        formatter={(value: any, name: any) => [`${value} agendamento${Number(value) !== 1 ? 's' : ''}`, name]}
                       />
                       <Legend
                         verticalAlign="bottom"
