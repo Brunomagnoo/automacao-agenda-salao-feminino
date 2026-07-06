@@ -3,22 +3,22 @@ import { prisma } from '@/lib/prisma';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
+const BRAZIL_PHONE_REGEX = /^([1-9]{1}[1-9]{1})(9\d{8}|\d{8})$/;
+
 const CreateAppointmentSchema = z.object({
   serviceIds: z.array(z.string().min(1)).min(1),
   timeSlotId: z.string().min(1),
   totalEstimated: z.number().nonnegative(),
   totalDurationMin: z.number().int().positive(),
+  name: z.string().optional(),
+  phone: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json(
-        { error: 'UNAUTHORIZED', message: 'Não autenticado' },
-        { status: 401 },
-      );
-    }
+    let user = await getCurrentUser();
+    let finalUserId = user?.userId;
+    let userExistedBefore = false;
 
     const rawBody = await request.json();
     const parseResult = CreateAppointmentSchema.safeParse(rawBody);
@@ -30,7 +30,62 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { serviceIds, timeSlotId, totalEstimated, totalDurationMin } = parseResult.data;
+    const { serviceIds, timeSlotId, totalEstimated, totalDurationMin, name, phone } = parseResult.data;
+
+    // If no logged in user, require name and phone
+    if (!user) {
+      if (!name || !phone) {
+        return NextResponse.json(
+          { error: 'UNAUTHORIZED', message: 'Faça login ou informe Nome e WhatsApp para agendar.' },
+          { status: 401 },
+        );
+      }
+
+      const cleanPhone = phone.replace(/\D/g, '').replace(/^55/, '');
+      if (!BRAZIL_PHONE_REGEX.test(cleanPhone)) {
+        return NextResponse.json(
+          { error: 'BAD_REQUEST', message: 'Número de WhatsApp inválido.' },
+          { status: 400 },
+        );
+      }
+
+      // Check if user exists by phone
+      let existingUser = await prisma.user.findUnique({
+        where: { phone: cleanPhone }
+      });
+
+      if (existingUser) {
+        finalUserId = existingUser.id;
+        userExistedBefore = true;
+      } else {
+        // Create new guest user
+        const { hash } = await import('bcryptjs');
+        const randomPassword = Math.random().toString(36).slice(-10);
+        const passwordHash = await hash(randomPassword, 10);
+        
+        const userCount = await prisma.user.count();
+        const uniqueCode = 'BS-' + String(userCount + 1).padStart(4, '0');
+
+        const newUser = await prisma.user.create({
+          data: {
+            name,
+            phone: cleanPhone,
+            passwordHash,
+            uniqueCode,
+            role: 'CLIENT'
+          }
+        });
+        finalUserId = newUser.id;
+        userExistedBefore = false;
+      }
+    }
+
+    if (!finalUserId) {
+      return NextResponse.json(
+        { error: 'INTERNAL_ERROR', message: 'Falha ao identificar usuário' },
+        { status: 500 },
+      );
+    }
 
     // Verify the slot exists and is available
     const slot = await prisma.timeSlot.findUnique({
@@ -61,7 +116,7 @@ export async function POST(request: NextRequest) {
       // 1. Create the appointment
       const newAppointment = await tx.appointment.create({
         data: {
-          userId: user.userId,
+          userId: finalUserId!,
           timeSlotId,
           totalEstimated,
           totalDurationMin,
@@ -116,7 +171,7 @@ export async function POST(request: NextRequest) {
     const { formatDate } = await import('@/lib/utils');
 
     // Get the user data from DB to get the name and phone
-    const dbUser = await prisma.user.findUnique({ where: { id: user.userId } });
+    const dbUser = await prisma.user.findUnique({ where: { id: finalUserId! } });
 
     if (dbUser) {
       // Await email to prevent memory leaks and Vercel background task termination
@@ -134,7 +189,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json(appointment, { status: 201 });
+    return NextResponse.json({ ...appointment, userExistedBefore }, { status: 201 });
   } catch (error) {
     console.error('Error creating appointment:', error);
     return NextResponse.json(

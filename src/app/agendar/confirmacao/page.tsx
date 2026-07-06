@@ -12,6 +12,9 @@ export default function ConfirmacaoPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [timeSlot, setTimeSlot] = useState<TimeSlot | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [guestName, setGuestName] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
+  const [userExisted, setUserExisted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
@@ -19,12 +22,12 @@ export default function ConfirmacaoPage() {
     async function init() {
       try {
         const authRes = await fetch('/api/auth/me');
-        if (authRes.status === 401) {
-          router.push('/login');
-          return;
+        if (authRes.ok) {
+          const userData = await authRes.json();
+          setUser(userData.user);
+        } else {
+          setUser(null);
         }
-        const userData = await authRes.json();
-        setUser(userData.user);
 
         const storedServices = sessionStorage.getItem('booking-services');
         const storedSlot = sessionStorage.getItem('booking-timeslot');
@@ -37,7 +40,7 @@ export default function ConfirmacaoPage() {
         setServices(JSON.parse(storedServices));
         setTimeSlot(JSON.parse(storedSlot));
       } catch {
-        router.push('/login');
+        setUser(null);
       } finally {
         setLoadingAuth(false);
       }
@@ -57,6 +60,14 @@ export default function ConfirmacaoPage() {
 
   const handleConfirm = async () => {
     if (!timeSlot) return;
+    
+    if (!user) {
+      if (!guestName.trim() || !guestPhone.trim()) {
+        alert('Por favor, informe seu Nome e WhatsApp para continuar.');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const res = await fetch('/api/appointments', {
@@ -67,12 +78,19 @@ export default function ConfirmacaoPage() {
           timeSlotId: timeSlot.id,
           totalEstimated: totalPrice,
           totalDurationMin,
+          name: guestName,
+          phone: guestPhone,
         }),
       });
 
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.message || 'Erro ao agendar');
+      }
+
+      const resData = await res.json();
+      if (resData.userExistedBefore) {
+        setUserExisted(true);
       }
 
       setConfirmed(true);
@@ -174,7 +192,7 @@ export default function ConfirmacaoPage() {
               </div>
             </div>
 
-            {/* Actions */}
+            {/* Actions & Guest Form */}
             <div
               style={{
                 marginTop: 'var(--space-xl)',
@@ -183,6 +201,37 @@ export default function ConfirmacaoPage() {
                 gap: 'var(--space-md)',
               }}
             >
+              {!user && (
+                <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid var(--color-border)', marginBottom: '10px' }}>
+                  <h4 style={{ marginBottom: '15px', color: 'var(--color-text-primary)' }}>Seus Dados</h4>
+                  <div className="form-group">
+                    <label htmlFor="guestName" className="form-label">Nome Completo</label>
+                    <input
+                      id="guestName"
+                      type="text"
+                      className="form-input"
+                      placeholder="Como gostaria de ser chamada?"
+                      value={guestName}
+                      onChange={(e) => setGuestName(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group" style={{ marginTop: '15px' }}>
+                    <label htmlFor="guestPhone" className="form-label">WhatsApp</label>
+                    <input
+                      id="guestPhone"
+                      type="text"
+                      className="form-input"
+                      placeholder="(11) 98765-4321"
+                      value={guestPhone}
+                      onChange={(e) => setGuestPhone(e.target.value)}
+                    />
+                  </div>
+                  <div style={{ marginTop: '15px', fontSize: '0.9rem', color: 'var(--color-text-secondary)', textAlign: 'center' }}>
+                    Já tem um cadastro? <Link href="/login" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>Faça login aqui</Link>
+                  </div>
+                </div>
+              )}
+
               <button
                 className="btn btn--primary btn--block btn--lg"
                 onClick={handleConfirm}
@@ -204,7 +253,19 @@ export default function ConfirmacaoPage() {
               {'\n'}Entraremos em contato em breve, para finalizarmos os detalhes do serviço.
             </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+            {userExisted && !user && (
+              <div style={{ background: '#f8f4f4', padding: '15px', borderRadius: '8px', border: '1px solid #E6B8B3', marginTop: '20px', marginBottom: '20px', textAlign: 'center' }}>
+                <h4 style={{ color: '#9D5C55', marginBottom: '8px' }}>💡 Dica: Mantenha seu histórico!</h4>
+                <p style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)', margin: 0 }}>
+                  Vimos que você já usou esse número antes. Para ter acesso aos seus agendamentos antigos e poder cancelar sozinho, considere criar uma senha ou fazer login na sua próxima visita!
+                </p>
+                <Link href="/login" style={{ display: 'inline-block', marginTop: '10px', color: 'var(--color-primary)', textDecoration: 'underline', fontSize: '0.9rem', fontWeight: 500 }}>
+                  Acessar minha conta
+                </Link>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)', marginTop: (userExisted && !user) ? '0' : 'var(--space-xl)' }}>
               <button className="btn btn--secondary btn--block" onClick={handleBackHome}>
                 Voltar ao Início
               </button>
