@@ -1,7 +1,11 @@
 import { Resend } from 'resend';
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const SALON_EMAIL = process.env.SALON_EMAIL || 'brunoviniciusmagno@hotmail.com';
+
+if (!process.env.SALON_EMAIL) {
+  console.warn('[Email] SALON_EMAIL env var not set — email notifications will be skipped.');
+}
+const SALON_EMAIL = process.env.SALON_EMAIL ?? '';
 
 interface SendNotificationProps {
   clientName: string;
@@ -46,8 +50,8 @@ export async function sendAppointmentNotification(data: SendNotificationProps) {
         <p>Acesse o <a href="https://beauty-salon-app-eight.vercel.app/admin" style="color: #c79f87; font-weight: bold;">painel Admin</a> para confirmar ou gerenciar este agendamento.</p>
       `,
     });
-    console.log('Email enviado com sucesso para', SALON_EMAIL);
+    console.log('[Email] Notificação de agendamento enviada com sucesso.');
   } catch (error) {
-    console.error('Erro ao enviar email via Resend:', error);
+    console.error('[Email] Erro ao enviar notificação:', error instanceof Error ? error.message : 'Erro desconhecido');
   }
 }

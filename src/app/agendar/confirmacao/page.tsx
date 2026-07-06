@@ -14,6 +14,7 @@ export default function ConfirmacaoPage() {
   const [confirmed, setConfirmed] = useState(false);
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
+  const [guestConsent, setGuestConsent] = useState(false);
   const [userExisted, setUserExisted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingAuth, setLoadingAuth] = useState(true);
@@ -64,6 +65,10 @@ export default function ConfirmacaoPage() {
     if (!user) {
       if (!guestName.trim() || !guestPhone.trim()) {
         alert('Por favor, informe seu Nome e WhatsApp para continuar.');
+        return;
+      }
+      if (!guestConsent) {
+        alert('Por favor, confirme que você aceita nossa Política de Privacidade para continuar.');
         return;
       }
     }
@@ -226,7 +231,21 @@ export default function ConfirmacaoPage() {
                       onChange={(e) => setGuestPhone(e.target.value)}
                     />
                   </div>
-                  <div style={{ marginTop: '15px', fontSize: '0.9rem', color: 'var(--color-text-secondary)', textAlign: 'center' }}>
+                  {/* L-05 LGPD: Explicit consent required before storing personal data */}
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginTop: '15px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
+                    <input
+                      id="guestConsent"
+                      type="checkbox"
+                      checked={guestConsent}
+                      onChange={(e) => setGuestConsent(e.target.checked)}
+                      style={{ marginTop: '2px', accentColor: 'var(--color-primary)', flexShrink: 0 }}
+                    />
+                    <span>
+                      Ao confirmar, concordo que meus dados (nome e telefone) serão armazenados para gestão do meu agendamento, conforme a{' '}
+                      <strong>Lei Geral de Proteção de Dados (LGPD)</strong>.
+                    </span>
+                  </label>
+                  <div style={{ marginTop: '12px', fontSize: '0.9rem', color: 'var(--color-text-secondary)', textAlign: 'center' }}>
                     Já tem um cadastro? <Link href="/login" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>Faça login aqui</Link>
                   </div>
                 </div>

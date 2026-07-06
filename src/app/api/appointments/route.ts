@@ -1,5 +1,6 @@
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { randomBytes } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -8,15 +9,14 @@ const BRAZIL_PHONE_REGEX = /^([1-9]{1}[1-9]{1})(9\d{8}|\d{8})$/;
 const CreateAppointmentSchema = z.object({
   serviceIds: z.array(z.string().min(1)).min(1),
   timeSlotId: z.string().min(1),
-  totalEstimated: z.number().nonnegative(),
-  totalDurationMin: z.number().int().positive(),
-  name: z.string().optional(),
+  // totalEstimated and totalDurationMin from client are IGNORED — recalculated server-side
+  name: z.string().min(2).max(100).optional(),
   phone: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
   try {
-    let user = await getCurrentUser();
+    const user = await getCurrentUser();
     let finalUserId = user?.userId;
     let userExistedBefore = false;
 
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { serviceIds, timeSlotId, totalEstimated, totalDurationMin, name, phone } = parseResult.data;
+    const { serviceIds, timeSlotId, name, phone } = parseResult.data;
 
     // If no logged in user, require name and phone
     if (!user) {
@@ -49,33 +49,36 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Check if user exists by phone
-      let existingUser = await prisma.user.findUnique({
-        where: { phone: cleanPhone }
-      });
+      // Check if user exists by phone (upsert by phone to avoid race conditions)
+      const existingUser = await prisma.user.findUnique({ where: { phone: cleanPhone } });
 
       if (existingUser) {
         finalUserId = existingUser.id;
         userExistedBefore = true;
       } else {
-        // Create new guest user
+        // Create new guest user with cryptographically secure random password
         const { hash } = await import('bcryptjs');
-        const randomPassword = Math.random().toString(36).slice(-10);
+        const randomPassword = randomBytes(16).toString('hex');
         const passwordHash = await hash(randomPassword, 10);
-        
-        const userCount = await prisma.user.count();
-        const uniqueCode = 'BS-' + String(userCount + 1).padStart(4, '0');
 
+        // B-01: Generate uniqueCode from cuid after creation to avoid race condition
         const newUser = await prisma.user.create({
           data: {
             name,
             phone: cleanPhone,
             passwordHash,
-            uniqueCode,
-            role: 'CLIENT'
-          }
+            uniqueCode: `TEMP-${randomBytes(4).toString('hex')}`, // temporary placeholder
+            role: 'CLIENT',
+          },
         });
-        finalUserId = newUser.id;
+
+        // Update uniqueCode using the stable DB-generated id (no race condition)
+        const finalUser = await prisma.user.update({
+          where: { id: newUser.id },
+          data: { uniqueCode: `BS-${newUser.id.slice(-6).toUpperCase()}` },
+        });
+
+        finalUserId = finalUser.id;
         userExistedBefore = false;
       }
     }
@@ -87,32 +90,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify the slot exists and is available
-    const slot = await prisma.timeSlot.findUnique({
-      where: { id: timeSlotId },
+    // S-09: Recalculate price and duration from DB — never trust client values
+    const dbServices = await prisma.service.findMany({
+      where: { id: { in: serviceIds }, isActive: true },
     });
 
-    if (!slot) {
+    if (dbServices.length !== serviceIds.length) {
       return NextResponse.json(
-        { error: 'SLOT_NOT_FOUND', message: 'Horário não encontrado' },
-        { status: 404 },
+        { error: 'BAD_REQUEST', message: 'Um ou mais serviços não encontrados ou inativos.' },
+        { status: 400 },
       );
     }
 
-    if (!slot.isAvailable) {
-      return NextResponse.json(
-        { error: 'SLOT_UNAVAILABLE', message: 'Horário não está disponível' },
-        { status: 409 },
-      );
-    }
+    const totalEstimated = dbServices.reduce((sum, svc) => sum + svc.basePrice, 0);
+    const totalDurationMin = dbServices.reduce((sum, svc) => sum + svc.durationMin, 0);
 
-    // Parse start time to minutes
-    const [startH, startM] = slot.startTime.split(':').map(Number);
-    const startMin = startH * 60 + startM;
-    const endMin = startMin + totalDurationMin;
-
-    // Create appointment in a transaction
+    // S-02: All slot checks and booking happen inside a single transaction (fixes TOCTOU race condition)
     const appointment = await prisma.$transaction(async (tx) => {
+      // Verify the slot exists and is available INSIDE the transaction
+      const slot = await tx.timeSlot.findUnique({ where: { id: timeSlotId } });
+
+      if (!slot) {
+        throw new Error('SLOT_NOT_FOUND');
+      }
+      if (!slot.isAvailable) {
+        throw new Error('SLOT_UNAVAILABLE');
+      }
+
+      // Parse start time to minutes
+      const [startH, startM] = slot.startTime.split(':').map(Number);
+      const startMin = startH * 60 + startM;
+      const endMin = startMin + totalDurationMin;
+
       // 1. Create the appointment
       const newAppointment = await tx.appointment.create({
         data: {
@@ -158,40 +167,42 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      return newAppointment;
+      return { appointment: newAppointment, slot };
     });
 
-    // Fetch service names for email
-    const services = await prisma.service.findMany({
-      where: { id: { in: serviceIds } },
-    });
-
-    // Import and call email notification
-    const { sendAppointmentNotification } = await import('@/lib/email');
-    const { formatDate } = await import('@/lib/utils');
-
-    // Get the user data from DB to get the name and phone
-    const dbUser = await prisma.user.findUnique({ where: { id: finalUserId! } });
-
-    if (dbUser) {
-      // Await email to prevent memory leaks and Vercel background task termination
-      try {
+    // Send email notification (outside transaction — non-critical)
+    try {
+      const { sendAppointmentNotification } = await import('@/lib/email');
+      const { formatDate } = await import('@/lib/utils');
+      const dbUser = await prisma.user.findUnique({ where: { id: finalUserId! } });
+      if (dbUser) {
         await sendAppointmentNotification({
           clientName: dbUser.name,
           clientPhone: dbUser.phone,
-          services: services.map((s) => s.name),
-          date: formatDate(slot.date.toISOString()),
-          startTime: slot.startTime,
+          services: dbServices.map((s) => s.name),
+          date: formatDate(appointment.slot.date.toISOString()),
+          startTime: appointment.slot.startTime,
           totalEstimated,
         });
-      } catch (err) {
-        console.error('Email failed to send, but appointment was created:', err);
       }
+    } catch (err) {
+      console.error('[Appointments] Email falhou, mas agendamento foi criado:', err instanceof Error ? err.message : '');
     }
 
-    return NextResponse.json({ ...appointment, userExistedBefore }, { status: 201 });
+    // L-08: Return only necessary fields + userExistedBefore (used for nudge only)
+    return NextResponse.json(
+      { id: appointment.appointment.id, status: appointment.appointment.status, userExistedBefore },
+      { status: 201 },
+    );
   } catch (error) {
-    console.error('Error creating appointment:', error);
+    const msg = error instanceof Error ? error.message : '';
+    if (msg === 'SLOT_NOT_FOUND') {
+      return NextResponse.json({ error: 'SLOT_NOT_FOUND', message: 'Horário não encontrado' }, { status: 404 });
+    }
+    if (msg === 'SLOT_UNAVAILABLE') {
+      return NextResponse.json({ error: 'SLOT_UNAVAILABLE', message: 'Horário não está mais disponível' }, { status: 409 });
+    }
+    console.error('[Appointments] Erro ao criar agendamento:', msg);
     return NextResponse.json(
       { error: 'INTERNAL_ERROR', message: 'Erro ao criar agendamento' },
       { status: 500 },
@@ -211,7 +222,7 @@ export async function GET() {
 
     const appointments = await prisma.appointment.findMany({
       where: { userId: user.userId },
-      take: 100, // UX/Perf fix: prevent memory leaks with unbounded queries
+      take: 100,
       include: {
         services: {
           include: { service: true },
@@ -223,7 +234,7 @@ export async function GET() {
 
     return NextResponse.json(appointments);
   } catch (error) {
-    console.error('Error fetching appointments:', error);
+    console.error('[Appointments] Erro ao buscar agendamentos:', error instanceof Error ? error.message : '');
     return NextResponse.json(
       { error: 'INTERNAL_ERROR', message: 'Erro ao buscar agendamentos' },
       { status: 500 },

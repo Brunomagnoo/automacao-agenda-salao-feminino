@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { hash } from 'bcryptjs';
+import { randomBytes } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
-
 import { z } from 'zod';
 
 const BRAZIL_PHONE_REGEX = /^([1-9]{1}[1-9]{1})(9\d{8}|\d{8})$/;
@@ -41,29 +41,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Este telefone já está cadastrado' }, { status: 409 });
     }
 
-    // Generate unique code
-    const userCount = await prisma.user.count();
-    const uniqueCode = 'BS-' + String(userCount + 1).padStart(4, '0');
-
     // Hash password
     const passwordHash = await hash(password, 10);
 
-    // Create user
+    // B-01 FIX: Create user first with a temporary unique code to avoid race condition.
+    // Then update with a uniqueCode derived from the stable DB-generated cuid.
+    const tempCode = `TEMP-${randomBytes(4).toString('hex')}`;
     const user = await prisma.user.create({
       data: {
         name,
         phone,
         passwordHash,
-        uniqueCode,
+        uniqueCode: tempCode,
         role: 'CLIENT',
       },
+    });
+
+    // Derive stable uniqueCode from the cuid — no race condition possible
+    const uniqueCode = `BS-${user.id.slice(-6).toUpperCase()}`;
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { uniqueCode },
     });
 
     return NextResponse.json(
       {
         user: {
           id: user.id,
-          uniqueCode: user.uniqueCode,
+          uniqueCode,
           name: user.name,
           phone: user.phone,
           role: user.role,
@@ -72,7 +77,7 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     );
   } catch (error) {
-    console.error('Register error:', error);
+    console.error('[Register] Erro:', error instanceof Error ? error.message : '');
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }

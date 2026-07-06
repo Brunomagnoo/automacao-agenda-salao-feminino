@@ -76,23 +76,21 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ deleted: 0 });
     }
 
-    // Free up timeslots
+    // Atomic: free up timeslots AND delete appointments in a single transaction
     const slotIds = appointmentsToDelete.map((a) => a.timeSlotId);
-    if (slotIds.length > 0) {
-      await prisma.timeSlot.updateMany({
+    const [, deleteResult] = await prisma.$transaction([
+      prisma.timeSlot.updateMany({
         where: { id: { in: slotIds } },
         data: { isAvailable: true },
-      });
-    }
+      }),
+      prisma.appointment.deleteMany({
+        where: { timeSlot: { date: targetDate } },
+      }),
+    ]);
 
-    // Delete appointments
-    const { count } = await prisma.appointment.deleteMany({
-      where: { timeSlot: { date: targetDate } },
-    });
-
-    return NextResponse.json({ deleted: count });
+    return NextResponse.json({ deleted: deleteResult.count });
   } catch (error) {
-    console.error('Error deleting appointments:', error);
+    console.error('[AdminAPI] Erro ao deletar agendamentos:', error instanceof Error ? error.message : '');
     return NextResponse.json(
       { error: 'INTERNAL_ERROR', message: 'Erro ao deletar agendamentos' },
       { status: 500 },
