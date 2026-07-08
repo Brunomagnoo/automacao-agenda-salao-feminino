@@ -55,29 +55,36 @@ export default function AgendarPage() {
         // Selecting
         next.push(id);
 
-        // Smart Logic for Manicure Combo
-        const hasManicure = next.includes('manicure-10');
-        const hasPedicure = next.includes('manicure-11');
-        const hasCombo = next.includes('manicure-12');
+        // S-11 FIX: Detect combo logic dynamically via service names instead of hardcoded IDs
+        // Combos are detected if the service name matches known patterns (case-insensitive)
+        const findByName = (pattern: RegExp) =>
+          services.find((s) => pattern.test(s.name))?.id;
 
-        if (id === 'manicure-10' || id === 'manicure-11') {
-          if (hasManicure && hasPedicure) {
-            // Selected both individual: switch to combo automatically
-            next = next.filter((sid) => sid !== 'manicure-10' && sid !== 'manicure-11');
-            if (!next.includes('manicure-12')) next.push('manicure-12');
-          } else if (hasCombo) {
-            // Selected individual while combo was active: switch to individual
-            next = next.filter((sid) => sid !== 'manicure-12');
+        const manicureId = findByName(/manicure(?!.*pedicure)/i);
+        const pedicureId = findByName(/pedicure/i);
+        const comboId = findByName(/combo.*mani.*pedi|mani.*pedi.*combo/i);
+
+        if (comboId && manicureId && pedicureId) {
+          const hasManicure = next.includes(manicureId);
+          const hasPedicure = next.includes(pedicureId);
+          const hasCombo = next.includes(comboId);
+
+          if (id === manicureId || id === pedicureId) {
+            if (hasManicure && hasPedicure) {
+              next = next.filter((sid) => sid !== manicureId && sid !== pedicureId);
+              if (!next.includes(comboId)) next.push(comboId);
+            } else if (hasCombo) {
+              next = next.filter((sid) => sid !== comboId);
+            }
+          } else if (id === comboId) {
+            next = next.filter((sid) => sid !== manicureId && sid !== pedicureId);
           }
-        } else if (id === 'manicure-12') {
-          // Selected combo: remove individual selections
-          next = next.filter((sid) => sid !== 'manicure-10' && sid !== 'manicure-11');
         }
 
         // Limit maximum duration to 8 hours (480 minutes)
         const nextServices = services.filter((s) => next.includes(s.id));
         const nextDuration = nextServices.reduce((sum, s) => sum + s.durationMin, 0);
-        
+
         if (nextDuration > 480) {
           alert('A duração total dos serviços não pode ultrapassar 8 horas. Por favor, divida em mais de um agendamento.');
           return prev;
@@ -94,7 +101,10 @@ export default function AgendarPage() {
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
-    localStorage.clear();
+    // B-04 FIX: only remove keys belonging to this app — never clear() the entire localStorage
+    localStorage.removeItem('beauty-salon-user');
+    sessionStorage.removeItem('booking-services');
+    sessionStorage.removeItem('booking-timeslot');
     router.push('/');
   };
 

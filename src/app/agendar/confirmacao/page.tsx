@@ -38,8 +38,42 @@ export default function ConfirmacaoPage() {
           return;
         }
 
-        setServices(JSON.parse(storedServices));
-        setTimeSlot(JSON.parse(storedSlot));
+        // B-05 FIX: validate structure after parsing to prevent silent crashes on corrupt data
+        let parsedServices: Service[];
+        let parsedSlot: TimeSlot;
+
+        try {
+          parsedServices = JSON.parse(storedServices);
+          parsedSlot = JSON.parse(storedSlot);
+        } catch {
+          // Corrupted sessionStorage data — clear and redirect
+          sessionStorage.removeItem('booking-services');
+          sessionStorage.removeItem('booking-timeslot');
+          router.push('/agendar');
+          return;
+        }
+
+        // Structural validation: ensure minimum required fields are present
+        const isValidServices =
+          Array.isArray(parsedServices) &&
+          parsedServices.length > 0 &&
+          parsedServices.every((s) => typeof s.id === 'string' && typeof s.name === 'string' && typeof s.basePrice === 'number');
+
+        const isValidSlot =
+          parsedSlot &&
+          typeof parsedSlot.id === 'string' &&
+          typeof parsedSlot.startTime === 'string' &&
+          typeof parsedSlot.date === 'string';
+
+        if (!isValidServices || !isValidSlot) {
+          sessionStorage.removeItem('booking-services');
+          sessionStorage.removeItem('booking-timeslot');
+          router.push('/agendar');
+          return;
+        }
+
+        setServices(parsedServices);
+        setTimeSlot(parsedSlot);
       } catch {
         setUser(null);
       } finally {

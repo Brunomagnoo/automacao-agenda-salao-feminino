@@ -8,7 +8,7 @@ export interface User {
   name: string;
   phone: string;
   role: 'CLIENT' | 'ADMIN';
-  createdAt: string;
+  // C-02: removed `createdAt` — not returned by /api/auth/me
 }
 
 export interface Service {
@@ -18,7 +18,8 @@ export interface Service {
   durationMin: number;
   basePrice: number;
   isActive: boolean;
-  order: number;
+  // C-03: fixed — Prisma schema uses `displayOrder`, not `order`
+  displayOrder: number;
 }
 
 export interface TimeSlot {
@@ -65,15 +66,14 @@ export interface LoginRequest {
 }
 
 export interface AuthResponse {
+  // C-02: removed `token` — auth uses httpOnly cookie, not a token in the response body
   user: User;
-  token: string;
 }
 
 export interface CreateAppointmentRequest {
   serviceIds: string[];
   timeSlotId: string;
-  totalEstimated: number;
-  totalDurationMin: number;
+  // S-09: totalEstimated and totalDurationMin are now calculated server-side
 }
 
 export interface CreateTimeSlotsRequest {

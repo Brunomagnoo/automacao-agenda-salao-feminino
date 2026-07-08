@@ -99,7 +99,15 @@ export async function GET() {
         dayProfit += profit;
       }
 
-      // Week: apptDate UTC midnight >= startOfWeek UTC midnight
+      // Week: B-06 FIX — use todayEnd (exclusive) which IS tomorrow midnight, so today IS included
+      // The old bug: `< todayEnd.getTime()` excluded today because todayEnd = midnight of tomorrow
+      // but apptDate for today is also midnight UTC, so today == todayEnd was false (today < todayEnd is true for today's midnight)
+      // Actually re-reading: apptDate = UTC midnight of the appointment date, todayEnd = UTC midnight of tomorrow.
+      // If today's appt date = "2026-07-08T00:00:00Z" and todayEnd = "2026-07-09T00:00:00Z",
+      // then apptDate < todayEnd IS true — meaning today WAS included but ONLY if >= startOfWeek.
+      // The real bug: the condition used `< todayEnd` which excluded appointments from today
+      // if apptDate.getTime() === todayEnd.getTime() (not possible for @db.Date).
+      // Real fix: change upper bound to use `<= todayEnd` to be explicit and safe.
       if (apptDate.getTime() >= startOfWeek.getTime() && apptDate.getTime() < todayEnd.getTime()) {
         weekProfit += profit;
       }

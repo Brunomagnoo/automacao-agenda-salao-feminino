@@ -30,7 +30,7 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
-      localStorage.setItem('beauty-salon-user', JSON.stringify(data.user));
+      // L-07 FIX: do NOT store PII in localStorage — the httpOnly cookie handles auth
       if (data.user.role === 'ADMIN') {
         router.push('/admin');
       } else {
@@ -110,13 +110,10 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => {
-                  if (!phone || phone.length < 8) {
-                    setError('Digite seu telefone primeiro para recuperar a senha.');
-                    return;
-                  }
-                  const text = encodeURIComponent(`Olá! Esqueci minha senha no aplicativo. Meu telefone de cadastro é ${phone}. Pode resetar minha senha?`);
-                  // Use a fixed salon number or a placeholder. Assuming +55 11 99999-9999 as a placeholder
-                  window.open(`https://wa.me/5511999999999?text=${text}`, '_blank');
+                  // S-10 FIX: do NOT include user's phone number in the URL (PII leakage)
+                  const text = encodeURIComponent('Olá! Esqueci minha senha no aplicativo de agendamento. Pode me ajudar a recuperar?');
+                  const salonPhone = process.env.NEXT_PUBLIC_SALON_PHONE || '5511999999999';
+                  window.open(`https://wa.me/${salonPhone}?text=${text}`, '_blank');
                 }}
                 style={{
                   background: 'none', border: 'none', color: 'var(--color-primary)', 

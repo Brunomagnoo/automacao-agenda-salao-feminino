@@ -25,11 +25,10 @@ export async function GET() {
         name: user.name,
         phone: user.phone,
         role: user.role,
-        createdAt: user.createdAt,
       },
     });
   } catch (error) {
-    console.error('Me error:', error);
+    console.error('[Auth/Me] Erro interno:', error instanceof Error ? error.message : '');
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }

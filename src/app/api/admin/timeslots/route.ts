@@ -1,6 +1,8 @@
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { NextRequest, NextResponse } from 'next/server';
+// C-06 FIX: moved Zod import to the top of the file (was on line 39, mid-file)
+import { z } from 'zod';
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(slots);
   } catch (error) {
-    console.error('Error fetching admin timeslots:', error);
+    console.error('[AdminTimeslots] Erro ao buscar horários:', error instanceof Error ? error.message : '');
     return NextResponse.json(
       { error: 'INTERNAL_ERROR', message: 'Erro ao buscar horários' },
       { status: 500 },
@@ -36,16 +38,16 @@ export async function GET(request: NextRequest) {
   }
 }
 
-import { z } from 'zod';
-
 const TimeslotsSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de data inválido (YYYY-MM-DD)'),
-  slots: z.array(
-    z.object({
-      startTime: z.string().regex(/^\d{2}:\d{2}$/),
-      endTime: z.string().regex(/^\d{2}:\d{2}$/),
-    }),
-  ).min(1, 'Pelo menos um horário é obrigatório'),
+  slots: z
+    .array(
+      z.object({
+        startTime: z.string().regex(/^\d{2}:\d{2}$/),
+        endTime: z.string().regex(/^\d{2}:\d{2}$/),
+      }),
+    )
+    .min(1, 'Pelo menos um horário é obrigatório'),
 });
 
 export async function POST(request: NextRequest) {
@@ -71,13 +73,12 @@ export async function POST(request: NextRequest) {
     const [year, month, day] = date.split('-').map(Number);
     const dateObj = new Date(Date.UTC(year, month - 1, day));
 
-    let created = 0;
     let skipped = 0;
 
     for (const slot of slots) {
       try {
         // upsert: if the unique pair (date, startTime) already exists, skip (no-op update)
-        const result = await prisma.timeSlot.upsert({
+        await prisma.timeSlot.upsert({
           where: { date_startTime: { date: dateObj, startTime: slot.startTime } },
           update: {}, // no changes if already exists
           create: {
@@ -87,17 +88,9 @@ export async function POST(request: NextRequest) {
             isAvailable: true,
           },
         });
-        // If createdAt equals updatedAt within 1s, it was truly created
-        const wasCreated =
-          Math.abs(result.id.length) > 0 &&
-          !(await prisma.timeSlot.findFirst({
-            where: { date: dateObj, startTime: slot.startTime },
-            select: { id: true },
-          }));
-        // Simple heuristic: count upserts where no conflict occurred
-        created++;
+        // C-05 FIX: removed dead code block (`wasCreated` that was always false and never used)
       } catch (e) {
-        console.error('Slot already exists or error:', slot.startTime, e);
+        console.error('[AdminTimeslots] Slot já existe ou erro:', slot.startTime, e instanceof Error ? e.message : '');
         skipped++;
       }
     }
@@ -116,7 +109,7 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     );
   } catch (error) {
-    console.error('Error creating timeslots:', error);
+    console.error('[AdminTimeslots] Erro ao criar horários:', error instanceof Error ? error.message : '');
     return NextResponse.json(
       { error: 'INTERNAL_ERROR', message: 'Erro ao criar horários' },
       { status: 500 },
@@ -153,7 +146,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ deleted: result.count });
   } catch (error) {
-    console.error('Error deleting timeslots:', error);
+    console.error('[AdminTimeslots] Erro ao remover horários:', error instanceof Error ? error.message : '');
     return NextResponse.json(
       { error: 'INTERNAL_ERROR', message: 'Erro ao remover horários' },
       { status: 500 },
