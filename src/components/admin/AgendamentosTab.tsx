@@ -27,6 +27,7 @@ export default function AgendamentosTab({ isAuthed }: { isAuthed: boolean }) {
   const [statusFilter, setStatusFilter] = useState('');
   const [loadingAppts, setLoadingAppts] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [finalValues, setFinalValues] = useState<Record<string, string>>({});
   const [expenseValues, setExpenseValues] = useState<Record<string, string>>({});
 
@@ -134,12 +135,48 @@ export default function AgendamentosTab({ isAuthed }: { isAuthed: boolean }) {
       if (res.ok) {
         const data = await res.json();
         alert(`${data.deleted} agendamentos foram apagados.`);
+        setSelectedIds([]);
         fetchAppointments();
       } else {
         alert('Erro ao apagar agendamentos.');
       }
     } catch {
       alert('Erro ao apagar agendamentos.');
+    }
+  };
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    const answer = prompt(
+      `Para excluir definitivamente os ${selectedIds.length} agendamento(s) selecionado(s), digite a palavra APAGAR:`,
+    );
+    if (answer !== 'APAGAR') {
+      alert('Palavra incorreta. A exclusão foi cancelada.');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/admin/appointments/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appointmentIds: selectedIds }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        alert(`${data.deleted} agendamento(s) apagado(s) com sucesso.`);
+        setSelectedIds([]);
+        fetchAppointments();
+      } else {
+        alert('Erro ao apagar agendamentos selecionados.');
+      }
+    } catch {
+      alert('Erro ao processar exclusão.');
     }
   };
 
@@ -191,6 +228,19 @@ export default function AgendamentosTab({ isAuthed }: { isAuthed: boolean }) {
         )}
       </div>
 
+      {selectedIds.length > 0 && (
+        <div style={{ backgroundColor: '#fff0f0', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #ffcdd2' }}>
+          <span style={{ color: '#d32f2f', fontWeight: 600 }}>{selectedIds.length} selecionado(s)</span>
+          <button 
+            className="adm-btn adm-btn--cancel" 
+            onClick={handleBulkDelete}
+            style={{ margin: 0, padding: '6px 12px' }}
+          >
+            🗑️ Excluir Selecionados
+          </button>
+        </div>
+      )}
+
       {loadingAppts ? (
         <div className="adm-loading">
           <div className="adm-loading__spinner" />
@@ -209,16 +259,24 @@ export default function AgendamentosTab({ isAuthed }: { isAuthed: boolean }) {
             const cfg = STATUS_CONFIG[appt.status];
 
             return (
-              <div key={appt.id} className={`adm-card${isExpanded ? ' adm-card--expanded' : ''}`}>
-                <button
-                  className="adm-card__header"
-                  onClick={() => setExpandedId(isExpanded ? null : appt.id)}
-                  type="button"
-                >
-                  <div className="adm-card__left">
-                    <span className={`adm-badge ${cfg.class}`}>{cfg.label}</span>
-                    <span className="adm-card__client">{appt.user.name}</span>
-                  </div>
+              <div key={appt.id} className={`adm-card${isExpanded ? ' adm-card--expanded' : ''}${selectedIds.includes(appt.id) ? ' adm-card--selected' : ''}`}>
+                <div className="adm-card__header-wrap" style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingRight: '16px' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={selectedIds.includes(appt.id)}
+                    onChange={() => toggleSelection(appt.id)}
+                    style={{ width: '18px', height: '18px', marginLeft: '16px', cursor: 'pointer', accentColor: '#d32f2f' }}
+                  />
+                  <button
+                    className="adm-card__header"
+                    onClick={() => setExpandedId(isExpanded ? null : appt.id)}
+                    type="button"
+                    style={{ flex: 1, paddingLeft: 0, background: 'transparent' }}
+                  >
+                    <div className="adm-card__left">
+                      <span className={`adm-badge ${cfg.class}`}>{cfg.label}</span>
+                      <span className="adm-card__client">{appt.user.name}</span>
+                    </div>
                   <div className="adm-card__right">
                     <span className="adm-card__time">
                       {appt.timeSlot.startTime} - {endTime}
@@ -236,6 +294,7 @@ export default function AgendamentosTab({ isAuthed }: { isAuthed: boolean }) {
                     </svg>
                   </div>
                 </button>
+                </div>
 
                 {isExpanded && (
                   <div className="adm-card__body">
