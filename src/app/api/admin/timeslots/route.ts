@@ -73,37 +73,26 @@ export async function POST(request: NextRequest) {
     const [year, month, day] = date.split('-').map(Number);
     const dateObj = new Date(Date.UTC(year, month - 1, day));
 
-    let skipped = 0;
+    // PERFORMANCE FIX: Use createMany with skipDuplicates instead of N sequential upserts
+    const dataToInsert = slots.map((slot) => ({
+      date: dateObj,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      isAvailable: true,
+    }));
 
-    for (const slot of slots) {
-      try {
-        // upsert: if the unique pair (date, startTime) already exists, skip (no-op update)
-        await prisma.timeSlot.upsert({
-          where: { date_startTime: { date: dateObj, startTime: slot.startTime } },
-          update: {}, // no changes if already exists
-          create: {
-            date: dateObj,
-            startTime: slot.startTime,
-            endTime: slot.endTime,
-            isAvailable: true,
-          },
-        });
-        // C-05 FIX: removed dead code block (`wasCreated` that was always false and never used)
-      } catch (e) {
-        console.error('[AdminTimeslots] Slot já existe ou erro:', slot.startTime, e instanceof Error ? e.message : '');
-        skipped++;
-      }
-    }
+    const createResult = await prisma.timeSlot.createMany({
+      data: dataToInsert,
+      skipDuplicates: true,
+    });
 
     // Re-fetch accurate counts
     const allSlots = await prisma.timeSlot.findMany({ where: { date: dateObj } });
-    const existingStarts = new Set(allSlots.map((s) => s.startTime));
-    const actualCreated = slots.filter((s) => existingStarts.has(s.startTime)).length;
 
     return NextResponse.json(
       {
-        created: actualCreated,
-        skipped: slots.length - actualCreated,
+        created: createResult.count,
+        skipped: slots.length - createResult.count,
         slots: allSlots,
       },
       { status: 201 },
