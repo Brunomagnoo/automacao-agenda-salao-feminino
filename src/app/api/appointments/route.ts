@@ -9,9 +9,18 @@ const BRAZIL_PHONE_REGEX = /^([1-9]{1}[1-9]{1})(9\d{8}|\d{8})$/;
 const CreateAppointmentSchema = z.object({
   serviceIds: z.array(z.string().min(1)).min(1),
   timeSlotId: z.string().min(1),
-  // totalEstimated and totalDurationMin from client are IGNORED — recalculated server-side
-  name: z.string().min(2).max(100).optional(),
-  phone: z.string().optional(),
+  // name/phone are only required for guest users (no cookie session)
+  // Transform empty string → undefined so logged-in users sending "" don't break validation
+  name: z
+    .string()
+    .transform((v) => (v.trim() === '' ? undefined : v.trim()))
+    .pipe(z.string().min(2).max(100).optional())
+    .optional(),
+  phone: z
+    .string()
+    .transform((v) => (v.trim() === '' ? undefined : v.trim()))
+    .pipe(z.string().optional())
+    .optional(),
 });
 
 export async function POST(request: NextRequest) {

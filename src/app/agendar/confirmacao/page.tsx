@@ -115,10 +115,8 @@ export default function ConfirmacaoPage() {
         body: JSON.stringify({
           serviceIds: services.map((s) => s.id),
           timeSlotId: timeSlot.id,
-          totalEstimated: totalPrice,
-          totalDurationMin,
-          name: guestName,
-          phone: guestPhone,
+          // Only send name/phone for guest users — avoids Zod validation error for logged-in users
+          ...(user ? {} : { name: guestName, phone: guestPhone }),
         }),
       });
 
