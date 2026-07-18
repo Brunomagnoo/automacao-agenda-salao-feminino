@@ -1,53 +1,77 @@
-# Agenda de Cabeleireiros Automatizada ✂️
+<div align="center">
 
-Um Micro SaaS (Software as a Service) completo e resiliente para gestão de agendamentos e horários de salões de beleza. Este projeto foi arquitetado com foco extremo em **Performance, Segurança e Experiência do Usuário (UX)**, aplicando as melhores práticas de Clean Code e resiliência de software.
+# 💇‍♀️ Automação de Agenda — Salão Feminino
 
----
+**Sistema de agendamento e controle de clientes para salões de beleza**
 
-## 🎯 O Desafio
-Criar um sistema de reservas de horários que não apenas fosse bonito, mas que fosse **impossível de quebrar** sob alta demanda (ex: datas festivas onde vários clientes tentam agendar ao mesmo tempo). O sistema resolve problemas crônicos de "Overbooking" (duplo agendamento) e quedas de servidor.
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Status](https://img.shields.io/badge/Status-Em%20Desenvolvimento-yellow?style=for-the-badge)
+![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
----
-
-## 🛠️ Arquitetura e Tecnologias Utilizadas
-
-A stack foi cuidadosamente selecionada para garantir escalabilidade global com custos mínimos de infraestrutura inicial (Serverless).
-
-### 1. Frontend & Core Framework
-*   **Next.js (App Router):** Escolhido pela capacidade de renderização no servidor (SSR), entregando HTML pronto para o celular do cliente. Isso zera o tempo de carregamento de telas pesadas e melhora agressivamente o SEO.
-*   **React & TypeScript:** Tipagem estática rigorosa ponta a ponta. Erros que normalmente iriam para produção são barrados diretamente no momento da escrita do código.
-*   **Vanilla CSS + Variáveis Globais:** Design System construído "do zero" sem dependência de bibliotecas de componentes pesadas. Resulta em um pacote final extremamente leve (alta pontuação no Lighthouse) e com visuais Premium (Glassmorphism e Neumorphism).
-
-### 2. Backend & API
-*   **Node.js (Serverless API Routes):** A API roda em funções serverless da Vercel. Cada rota escala infinitamente de forma independente.
-*   **Zod (Schema Validation):** Atua como o "leão de chácara" da API. Toda requisição HTTP é interceptada e validada matematicamente contra injeção de dados falsos ou maliciosos antes mesmo de tocar na regra de negócios. Evita falhas críticas de banco de dados.
-*   **Transações Seguras:** Todo o fluxo de reserva e bloqueio de calendário é executado em Transações Atômicas. Se algo falhar no milissegundo final, o banco faz "Rollback", garantindo que nenhum horário fique "fantasma".
-
-### 3. Banco de Dados e Infraestrutura
-*   **PostgreSQL (Supabase):** Banco de dados relacional hospedado na nuvem. Totalmente estruturado com Índices (`@@index`) nas tabelas críticas (Horários e Usuários), impedindo "Full Table Scans" e tornando buscas instantâneas mesmo com milhões de registros.
-*   **Prisma ORM (Singleton):** Ponte limpa e auto-tipada entre o Node e o Postgres. 
-*   **Vercel:** Hospedagem nativa Edge/Serverless.
-
-### 4. Segurança e Privacidade (AppSec)
-*   **JWT & HTTPOnly Cookies:** A sessão do usuário trafega exclusivamente via Cookies HTTPOnly, tornando ataques de interceptação (XSS) nulos.
-*   **Bcrypt Assíncrono:** Senhas criptografadas em hash utilizando `await compare()`, garantindo que o Event Loop do Node.js nunca seja bloqueado (o que derrubaria a API em picos de login).
+</div>
 
 ---
 
-## 🚀 Como Executar o Projeto
+## 📋 Sobre o Projeto
 
-1. Clone o repositório.
-2. Crie o arquivo `.env.local` na raiz e insira a string de conexão do seu PostgreSQL (`DATABASE_URL`) e `JWT_SECRET`.
-3. Instale as dependências: `npm install`
-4. Sincronize o banco de dados: `npx prisma db push`
-5. Rode a aplicação: `npm run dev`
+Sistema desenvolvido para automatizar o processo de agendamento e gestão de clientes em
+salões de beleza — eliminando o uso de cadernos, papéis e planilhas confusas.
+
+### 🎯 Problema que resolve
+Donos de salão perdem tempo com:
+- Agendamentos feitos manualmente por WhatsApp
+- Falta de controle de clientes e histórico de serviços
+- Dificuldade em visualizar a agenda do dia/semana
+- Sem lembretes automáticos de confirmação
+
+### ✅ Solução
+Automação completa do fluxo de agendamento com controle de clientes integrado.
 
 ---
 
-## 📊 Plano de Evolução (Roadmap)
-*   [x] Bloqueio transacional de concorrência.
-*   [x] Autenticação e Autorização por Níveis (Admin/Client).
-*   [x] Dashboards financeiros em tempo real.
-*   [ ] Testes E2E Automatizados com Playwright.
-*   [ ] Integração Oficial via WhatsApp API.
+## ✨ Funcionalidades
 
+- [x] Cadastro e controle de clientes
+- [x] Agendamento de serviços
+- [ ] Envio automático de lembretes (WhatsApp/SMS)
+- [ ] Painel de visualização da agenda
+- [ ] Relatórios de atendimento
+
+---
+
+## 🛠️ Tecnologias
+
+- **TypeScript** — Linguagem principal
+- **Node.js** — Runtime
+- **Git** — Controle de versão
+
+---
+
+## 🚀 Como Executar
+
+```bash
+# Clone o repositório
+git clone https://github.com/Brunomagnoo/automacao-agenda-salao-feminino.git
+
+# Entre na pasta
+cd automacao-agenda-salao-feminino
+
+# Instale as dependências
+npm install
+
+# Execute o projeto
+npm start
+```
+
+---
+
+## 👨‍💻 Autor
+
+**Bruno Magno**
+
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=flat&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/bruno-magno-a718081a9/)
+[![GitHub](https://img.shields.io/badge/GitHub-181717?style=flat&logo=github&logoColor=white)](https://github.com/Brunomagnoo)
+
+---
+
+*Projeto desenvolvido como parte da minha jornada de transição para tecnologia e construção de Micro-SaaS.*
